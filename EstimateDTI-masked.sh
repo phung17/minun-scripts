@@ -17,9 +17,3 @@ echo
 echo "Copying masked and estimated DTI.nhdr"
 cp DTI.nhdr ../
 cp DTI.raw.gz ../
-#rm *.*
-#cd ../
-#rmdir DTIGen
-
-#echo "DTIGen folder removed, processing complete."
-#echo
