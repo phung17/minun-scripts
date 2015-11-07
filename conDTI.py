@@ -10,13 +10,20 @@ class DWI2DTIMasked:
         self.options = options
         self.args = args
         self.force = False
+        self.nomask = False
 
     def startProc(self):
-        print ("\nConverting DWI to DTI with 0.5 Otsu threshold masking on: " + args[0])
+
         os.chdir(args[0])
-        global keep, dire, search, force
+        global keep, dire, search, force, nomask, otsu
         force = self.options.force
         keep = self.options.keep
+        nomask = self.options.nomask
+        otsu = self.options.otsu
+        if not nomask:
+            print ("\nConverting DWI to DTI with Otsu threshold at " + otsu + " on: " + args[0])
+        else:
+            print ("\nConverting DWI to DTI on: " + args[0])
         #print (options.keep)
         dire = str(self.options.dire)
         search = self.options.search
@@ -107,16 +114,24 @@ class DWI2DTIMasked:
             os.chdir("..")
 
     def EstimateDTImasked(self):
-        print ("\nMaking temporary folder for DWI Masking and DTI Estimation [Folder = DTIGen]")
+        if not nomask:
+            print ("\nMaking temporary folder for DWI Masking and DTI Estimation [Folder = DTIGen]")
+        else:
+            print ("\nMaking temporary folder for DTI Estimation [Folder = DTIGen]")
         if not os.path.isdir("DTIGen"):
             os.mkdir("DTIGen")
         os.system("cp DWI_CORRECTED.* DTIGen")
         os.chdir("DTIGen")
-        print ("\nStart Slicer 4.3.1 DiffusionWeightedVolumeMasking")
-        os.system("Slicer --launch DiffusionWeightedVolumeMasking --echo --removeislands DWI_CORRECTED.nhdr baseline.nrrd mask.nrrd")
-        print ("\nStart Slicer 4.3.1 DWIToDTIEstimation")
-        os.system("Slicer --launch DWIToDTIEstimation --echo --shiftNeg -e LS -m mask.nrrd DWI_CORRECTED.nhdr DTI.nhdr DTI-baseline.nrrd")
-        print ("\nCopying masked and estimated DTI.nhdr")
+        if not nomask:
+            print ("\nStart Slicer 4.3.1 DiffusionWeightedVolumeMasking")
+            os.system("Slicer --launch DiffusionWeightedVolumeMasking --echo --removeislands -o " + otsu + " DWI_CORRECTED.nhdr baseline.nrrd mask.nrrd")
+            print ("\nStart Slicer 4.3.1 DWIToDTIEstimation")
+            os.system("Slicer --launch DWIToDTIEstimation --echo --shiftNeg -e LS -m mask.nrrd DWI_CORRECTED.nhdr DTI.nhdr DTI-baseline.nrrd")
+            print ("\nCopying masked and estimated DTI.nhdr")
+        else:
+            print ("\nStart Slicer 4.3.1 DWIToDTIEstimation")
+            os.system("Slicer --launch DWIToDTIEstimation --echo --shiftNeg -e LS DWI_CORRECTED.nhdr DTI.nhdr DTI-baseline.nrrd")
+            print ("\nCopying estimated DTI.nhdr")
         os.system("cp DTI.nhdr ../")
         os.system("cp DTI.raw.gz ../")
         os.chdir("..")
@@ -127,8 +142,11 @@ if __name__ == '__main__':
     parser.add_option("-d", "--dti_dir", dest="dire", help="Only process this subdirectory, ignore -s option")
     parser.add_option("-f", "--force", action="store_true", dest="force", help="Force run even if already done running on this subject")
     parser.add_option("-k", "--keep", action="store_true", dest="keep", help="Keep .tmp files after conversion. Default: False")
+    parser.add_option("-n", "--nomask", action="store_true", dest="nomask", help="Do not perform Otsu threshold masking. Default: False")
+    parser.add_option("-o", "--otsu_thres", dest="otsu", default="0.5", help="Set the Otsu threshold, Default: 0.5")
     (options, args) = parser.parse_args()
     if len(args) != 1:
+        print ("\nThis script is dependent on Slicer root folder being set in $PATH")
         parser.print_help()
         sys.exit(2)
     else:
